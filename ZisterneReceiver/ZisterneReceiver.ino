@@ -1,5 +1,3 @@
-//#include <RFM12B.h>
-
 //#define RF69_COMPAT 0  // define this to use the RF69 driver i.s.o. RF12
 #include <JeeLib.h>
 
@@ -13,9 +11,6 @@ PayloadTX emontx;
 
 const int emonTx_NodeID=10;            //emonTx node ID
 const int LED_pin= 9;
-
-// Need an instance of the Radio Module
-//RFM12B radio;
 
 void setup() {
   
@@ -39,33 +34,26 @@ void setup() {
   rf12_initialize(myNodeID, RF_freq, network);
   // wait another 2s for the power supply to settle
   delay(2000);
+  digitalWrite(LED_pin, LOW);
 }
 
 void loop() {
   
-  if (rf12_recvDone() && rf12_crc) {
+  if (rf12_recvDone()) {
+    if (rf12_crc == 0 && (rf12_hdr & RF12_HDR_CTL) == 0) {
     
-    int node_id = (rf12_hdr & 0x1F);		  //extract nodeID from payload
-    //int node_id = radio.GetSender();
-    Serial.print("node "); Serial.println(node_id, DEC);
-        
-    if (node_id == emonTx_NodeID)  {             //check data is coming from node with the correct ID
-      digitalWrite(LED_pin, HIGH);
-      emontx=*(PayloadTX*) rf12_data;            // Extract the data from the payload 
-      //emontx=*(PayloadTX*) radio.GetData();            // Extract the data from the payload 
-       Serial.print("distance: "); Serial.println(emontx.distance); 
-       Serial.print("battery: "); Serial.println(emontx.battery); 
-       delay(500);
-       digitalWrite(LED_pin, LOW);
+      int node_id = (rf12_hdr & 0x1F);		  //extract nodeID from payload
+      Serial.print("node "); Serial.println(node_id, DEC);
+          
+      if (node_id == emonTx_NodeID)  {             //check data is coming from node with the correct ID
+        digitalWrite(LED_pin, HIGH);
+        emontx=*(PayloadTX*) rf12_data;            // Extract the data from the payload 
+        Serial.print("distance: "); Serial.println(emontx.distance); 
+        Serial.print("battery: "); Serial.println(emontx.battery); 
+        delay(500);
+        digitalWrite(LED_pin, LOW);
+      }
     }
-    
-    //if (RF12_WANTS_ACK) {
-      //radio.SendACK();
-    //  rf12_sendNow(RF12_ACK_REPLY, 0, 0);
-     // rf12_sendWait(2);
-     // Serial.println("ACK sent");
-    //}
-      
   }
 }
 

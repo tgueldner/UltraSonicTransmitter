@@ -2,6 +2,8 @@
 //#include <LowPower.h>
 //#include <RFM12B.h>
 
+#define DEBUG 1
+
 #define TRIGGER_PIN  4  // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     3  // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define VOLTAGE_PIN     5  // Arduino pin tied to echo pin on the ultrasonic sensor.
@@ -19,7 +21,7 @@
 #define network     210      //network group (can be in the range 1-250).
 #define RF_freq RF12_433MHZ     //Freq of RF12B can be RF12_433MHZ, RF12_868MHZ or RF12_915MHZ. Match freq to module
 #define ACK_TIME 50 // # of ms to wait for an ack
-#define MAX_RETRIES 5
+#define MAX_RETRIES 5 
 
 typedef struct { int distance, battery; } PayloadTX;      // create structure - a neat way of packaging data for RF comms
 PayloadTX emontx;  
@@ -27,8 +29,8 @@ PayloadTX emontx;
 // Use pin 2 as wake up pin
 const int wakeUpPin = 2;
 
-
-//ISR(WDT_vect) { Sleepy::watchdogEvent(); }
+// for Sleepy::looseSometime
+ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -70,13 +72,11 @@ void setup()
 void initRadio() {
   delay(32);
   rf12_initialize(myNodeID,RF_freq,network);   //Initialize RFM12 with settings defined above  
-
-  rf12_easyInit(1);
-  //radio.Initialize(myNodeID, RF_freq, network);
-  //radio.Sleep(); //sleep right away to save power
-  // wait another 2s for the power supply to settle
-  //Sleepy::loseSomeTime(2000);  
+#if DEBUG
   delay(2000);
+#elif
+  Sleepy::loseSomeTime(2000);
+#endif
 }
 
 int loopCounter = 0;
@@ -84,43 +84,44 @@ boolean wakeup = false;
 boolean success = false;
   
 void loop() { 
-  if(loopCounter > 3) {
+  if(loopCounter > MAX_RETRIES + 2) {
     loopCounter = 0;
     enterSleep();
   }
  
   // back on normal operations
   if(loopCounter == 0) {
+    // activate sonar sensor
     digitalWrite(VOLTAGE_PIN, HIGH);
-    loopCounter++; delay(500);
   } else if(loopCounter == 1) {    
+    // read sonar data
     emontx.distance=sonar.convert_cm(sonar.ping_median(5));
     emontx.battery=emontx.battery+4;
+#if DEBUG
     Serial.print(F("distance:")); Serial.println(emontx.distance);
-    loopCounter++; delay(500);
-  } else if(loopCounter == 2) {
+#endif
+  } else if(loopCounter >= 2) {
+#if DEBUG
     Serial.print(F("Sending data..."));
-    //rf12_recvDone();
-    //rf12_sendNow(RF12_HDR_ACK, &emontx, sizeof emontx);
-    //rf12_sendWait(2);
-    //radio.Send(gatewayID, &emontx, sizeof emontx, true);
-   rf12_easySend(&emontx, sizeof emontx);
-   loopCounter++;
-  } else if(loopCounter == 3) {
-    int result = rf12_easyPoll();
-    if(result == 1) {
-      loopCounter++;
-      Serial.println(F("done!"));
-    } else if(result == 0){
-      loopCounter++;
-      Serial.println(F("error"));
-    }
-  }
+#endif
+    rf12_recvDone();
+    rf12_sendNow(0, &emontx, sizeof emontx);
+    rf12_sendWait(2);
+  }   
+  loopCounter++; 
+#if DEBUG
+  delay(1000);
+#elif
+  Sleepy::loseSomeTime(1000);
+#endif
 }
 
 void enterSleep(void)
 {
+#if DEBUG
   Serial.println(F("Going to sleep."));
+#endif
+  
   wakeup = false;
   // deactivate ultrasonic sensor pin
   digitalWrite(VOLTAGE_PIN, LOW);
@@ -146,7 +147,9 @@ void enterSleep(void)
   /* The program will continue from here. */
   // Disable external pin interrupt on wake up pin.
   detachInterrupt(0); 
+#if DEBUG
   Serial.println(F("Be back"));
+#endif
   initRadio();
   wakeup = rf12_control(0x0000) && B10000;
 }
