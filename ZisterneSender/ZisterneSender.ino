@@ -40,11 +40,6 @@ NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and
 // Pin 13 has an LED connected on most Arduino boards.
 // give it a name:
 int LED_PIN = 1;
-
-void sendData()
-{
-    // Just a handler for the pin interrupt.
-}
   
 void setup()
 {
@@ -130,7 +125,8 @@ void enterSleep(void)
   //Bit	15 	14 	13 	12 	11 	10 	9 	8 	7 	6 	5 	4 	3 	2 	1 	0
   //←   1 	1 	1 	r4 	r3 	r2 	r1 	r0 	m7 	m6 	m5 	m4 	m3 	m2 	m1 	m0 	
   //int sleepTime = (B1111 * 256 ) + B11111111; // 1min
-  int sleepTime = (B100 * 256 ) + B11111111; // 4sec
+  //int sleepTime = (B100 * 256 ) + B11111111; // 4sec
+  int sleepTime = (B101 * 256 ) + B11111111; // 8sec
   rf12_control(RF_WAKEUP_TIMER | sleepTime);
   rf12_control(RF_WAKEUP_MODE);
   delay(100);

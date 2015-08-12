@@ -46,7 +46,9 @@ void setup() {
   pinMode(OUTPUT, LED_pin);
   
   Serial.begin(9600); 
-  Serial.println(F("RF12B Zisternen Gateway")); 
+  Serial.println(F("RF12B Zisternen Gateway"));
+  
+  connectToMQTT();
   
   Serial.print(F("Node: ")); 
   Serial.print(myNodeID); 
@@ -59,13 +61,12 @@ void setup() {
  
   Serial.print(F("Init radio ..."));
   delay(32);
-  rf12_initialize(myNodeID, RF_freq, network);
   rf12_set_cs(8);
+  rf12_initialize(myNodeID, RF_freq, network);
+  //rf12_set_cs(8);
   // wait another 2s for the power supply to settle
   delay(2000);
   Serial.println(F("done"));
-  
-  connectToMQTT();
 }
 
 void connectToMQTT() {
@@ -114,6 +115,12 @@ void loop() {
       sprintf(value, "%d", emontx.distance);
       char topic[30];
       sprintf(topic, "zisterne/sensor%d/distance", node_id);
+#if DEBUG
+      Serial.print("Sending [");
+      Serial.print(value);
+      Serial.print("] to ");
+      Serial.println(topic);
+#endif
       if(!client.connected()) {
         connectToMQTT();
       }
@@ -122,6 +129,8 @@ void loop() {
       digitalWrite(LED_pin, LOW);
     }
   }
+  
+  digitalWrite(LED_pin, LOW);
   
   // ?
   //client.loop();
